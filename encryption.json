@@ -1,0 +1,16 @@
+{
+    "privateKey": "~/.ssh/id_rsa",
+    "files": [
+        "configs/main.json"
+    ],
+    "collaborators": [
+        {
+            "name": "dominik",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtqVPg9iV+ieifNzuiKL5\nt6pI3LUORjcl7cRRE1L+f1zAw4KxD/A9a85ck/pXg7npa8GW+VcJMnh9c+42+aCd\n0h2SyJdpDDXoP1IwIabTEaAZRYAV4EbXO1ooN+2jHcU/VMSQ2MN9d7pdZBoudgzf\nK9BwVnN9yj1VKhU2pCWXxjzco4rIdSl0EfRF2YrAVZ9BCVfeA31gBlzDeBBR6Bvi\n6BHs9BantEq4Vzxq6vt5xYyACsWiqsM+pTOAasMt1I8fOhUN6QJIVSVGYD6r47pT\nYGpru8KLrtvJkP/qhoxL6UCkX3ul8kyvgqzpJhRc4pDYE5OpEe25nYYMHiHmDDQy\nFQIDAQAB\n-----END PUBLIC KEY-----\n"
+        },
+        {
+            "name" : "clemens",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxOp+fA+UvP05AV2mXo0q\npeKRFXGJS/YZpmzjYUXa18m66Rx5kXHzOBwF6EQyyMU5aB7iNfahaxqg8BNR03La\nHAB2ij39CJeqta/dCucr5F5LxDQ59fqmYwTSy+WwlLCrCCQS7x3ogygpHyonEzcw\nPMc1G2FEWDdFuvE5qep9nf390T35bRfb7dmrGOApiD3gF9WofWg4NEcYYyZxfIF4\nBGcqf7aYtCSjCT/IKfApivAaHL44LjHIhcOQk2tLP9COtxWgpTyssEmiXlN5QLhd\nYtO+IOo1JdF9ZpaoCe7Bzm09s3sRnWsKNEynNOve3Nb8dO2DRZ3Pc0YfGJrwuuRP\nDwIDAQAB\n-----END PUBLIC KEY-----\n"
+        }
+    ]
+}

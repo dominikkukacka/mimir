@@ -1,0 +1,127 @@
+#!/usr/local/bin/node
+
+var fs = require('fs');
+var spawn = require('child_process').spawn;
+var queue = require('q');
+
+var config = null;
+
+queue().
+then(function loadConfig() {
+    var deferred = queue.defer();
+    fs.readFile('encryption.json', function(err, data) {
+        deferred.resolve(JSON.parse(data));
+        config = JSON.parse(data);
+    });
+    return deferred.promise;
+}).
+then(function startEnryption() {
+    var publicKeyQueue = queue();
+    for (var i = 0; i < config.collaborators.length; i++) {
+        var collaborator = config.collaborators[i];
+
+        publicKeyQueue.
+            then(writePem(collaborator)).
+            then(startEncryption(collaborator));
+    }
+
+    publicKeyQueue.then(function() {
+        console.log('publicKeyQueue done!')
+        deferred.resolve();
+    })
+
+    return deferred.promise;
+});
+
+function startEncryption(collaborator) {
+    return function (){
+        var deferred = queue.defer();
+
+        var encryptionQueue = queue();
+
+        for (var i = 0; i < config.files.length; i++) {
+            var file = config.files[i];
+
+            encryptionQueue = encryptionQueue.then(encrypt(file, collaborator));
+
+        };
+
+        encryptionQueue.then(function() {
+            console.log('all done!');
+            deferred.resolve();
+        });
+
+        return deferred.promise;
+    }
+}
+
+function encrypt(file, collaborator) {
+    return function() {
+        var deferred = queue.defer();
+        console.log('encrypting for ' + collaborator.name);
+
+        fs.readFile(file, function(err, input) {
+            var process  = spawn('openssl', ['rsautl', '-encrypt', '-pubin', '-inkey', '/tmp/' + collaborator.name + '.pem'], {stdin: 'pipe'});
+            process.stdin.write(input);
+            process.stdin.end();
+            process.stdout.on('data', function (data) {
+                // console.log('stdout: ' + data);
+                fs.writeFile(file + '.' + collaborator.name + '.crypt', data, deferred.makeNodeResolver());
+            });
+            process.stderr.on('data', function (data) {
+                console.log('stderr: ' + data);
+                deferred.reject();
+            });
+        });
+
+        return deferred.promise;
+    }
+}
+
+function writePem(collaborator) {
+    return function() {
+        var deferred = queue.defer();
+        fs.writeFile('/tmp/' + collaborator.name + '.pem', collaborator.publicKey, function() {
+            deferred.resolve();
+        });
+        return deferred.promise;
+    }
+}
+
+// fs.readFile('encryption.json', function(err, data) {
+//     var config = JSON.parse(data);
+//     // console.log(config);
+//     for (var i = 0; i < config.collaborators.length; i++) {
+//         var collaborator = config.collaborators[i];
+//         fs.writeFile('/tmp/pem', collaborator.publicKey, function() {
+//             for (var i = 0; i < config.files.length; i++) {
+//                 var file = config.files[i];
+//                 encrypt(file, collaborator.name, function() {
+//                     fs.unlink('/tmp/pem', function() {
+
+//                     });
+//                 });
+//             };
+
+//             // decrypt('configs/config_dominik.json.crypt');
+//         });
+//     };
+
+// });
+
+
+function decrypt(file) {
+    fs.readFile(file, function(err, input) {
+        var process  = spawn('openssl', ['rsautl', '-decrypt', '-inkey', '/Users/dkukacka/.ssh/id_rsa'], {stdin: 'pipe'});
+        process.stdin.write(input);
+        process.stdin.end();
+        process.stdout.on('data', function (data) {
+            fs.writeFile(file.replace('.crypt',''), data, function() {
+                console.log('done decrypting file!');
+            });
+        });
+        process.stderr.on('data', function (data) {
+            console.log('stderr: ' + data);
+        });
+    });
+}

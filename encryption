@@ -8,36 +8,83 @@ var config = null;
 
 var ursa = require('ursa');
 
-
 var action = process.argv[2];
 switch(action) {
 
+    case 'collaborators':
+
+        var subaction = process.argv[3];
+
+        switch(subaction) {
+            case 'delete':
+            case 'remove':
+            case 'rm':
+                var name = process.argv[4];
+                if(!name) {
+                    console.error('please specify a name');
+                    return;
+                }
+
+                deleteCollaborator(name);
+
+                break;
+
+            case 'create':
+            case 'new':
+            case 'add':
+                var name = process.argv[4];
+                if(!name) {
+                    console.error('please specify a name');
+                    return;
+                }
+
+                var privateKey = process.argv[5];
+                if(!privateKey) {
+                    console.error('please specify a privateKey');
+                    return;
+                }
+
+                var publicKey = process.argv[6];
+                if(!publicKey) {
+                    console.error('please specify a publicKey');
+                    return;
+                }
+
+                addCollaborator(name, privateKey, publicKey);
+
+                break;
+
+            case 'list':
+            default:
+                listCollaborators();
+                break;
+        }
+
+
+        break;
+
     case 'encrypt':
+
         queue().
-        then(function loadConfig() {
-            var deferred = queue.defer();
-            fs.readFile('config.json', function(err, data) {
-                deferred.resolve(JSON.parse(data));
-                config = JSON.parse(data);
-            });
-            return deferred.promise;
-        }).
-        then(function startEnryption() {
-            var publicKeyQueue = queue();
-            for (var i = 0; i < config.collaborators.length; i++) {
-                var collaborator = config.collaborators[i];
+            then(loadConfig()).
+            then(function() {
+                var deferred = queue.defer();
 
-                publicKeyQueue = publicKeyQueue.
-                    then(startEncryption(config, collaborator));
-            }
+                var publicKeyQueue = queue().then(loadConfig());
+                for (var i = 0; i < config.collaborators.length; i++) {
+                    var collaborator = config.collaborators[i];
 
-            publicKeyQueue.then(function() {
-                console.log('publicKeyQueue done!')
+                    publicKeyQueue = publicKeyQueue.
+                        then(startEncryption(config, collaborator));
+                }
+
+                publicKeyQueue.then(function() {
+                    console.log('all encrypted')
+                    deferred.resolve();
+                });
+
                 deferred.resolve();
             });
-
-            return deferred.promise;
-        });
 
         break;
 
@@ -45,21 +92,95 @@ switch(action) {
         var user = process.argv[3];
 
         queue().
-        then(function loadConfig() {
-            var deferred = queue.defer();
-            fs.readFile('config.json', function(err, data) {
-                deferred.resolve(JSON.parse(data));
-                config = JSON.parse(data);
-            });
-            return deferred.promise;
-        }).
-        then(startDecryption(user));
-
-        break;
+            then(loadConfig()).
+            then(startDecryption(config, user)).
+            then(function() {
+                console.log('all decrypted');
+            })
 
     default:
         console.log('use either decrypt or encrypt');
 
+}
+
+function saveConfig() {
+    return function() {
+        var deferred = queue.defer();
+        fs.writeFile('config.json', JSON.stringify(config, null, 4), deferred.makeNodeResolver());
+        return deferred.promise;
+    }
+}
+
+
+function addCollaborator(name, privateKey, publicKey) {
+    queue().
+        then(loadConfig()).
+        then(function() {
+            var deferred = queue.defer();
+            // console.log('adding', name, privateKey, publicKey);
+            fs.readFile(publicKey, function(err, data) {
+
+                var crt = ursa.createPublicKey(data);
+
+                var publicKeyString = crt.toPublicPem().toString();
+                var collaborator = {
+                    name: name,
+                    privateKey: privateKey,
+                    publicKey: publicKeyString
+                };
+
+                config.collaborators.push(collaborator);
+                deferred.resolve();
+            });
+
+            return deferred.promise;
+        }).
+        then(saveConfig()).
+        then(function() {
+            console.log('collaborator added');
+        })
+}
+
+function deleteCollaborator(name) {
+    queue().
+        then(loadConfig()).
+        then(function() {
+            var newCollaborators = config.collaborators.filter(function(collaborator) {
+                return collaborator.name !== name;
+            });
+
+            config.collaborators = newCollaborators;
+        }).
+        then(saveConfig()).
+        then(function() {
+            console.log('collaborator removed');
+        })
+}
+
+function listCollaborators() {
+    queue().
+        then(loadConfig()).
+        then(function() {
+            var names = config.collaborators.map(function(collaborator) {
+                return collaborator.name
+            });
+
+            console.log('Known collaborators:');
+            console.log('  - ' + names.join("\n  - "));
+        });
+}
+
+function loadConfig() {
+    return function() {
+        var deferred = queue.defer();
+
+        fs.readFile('config.json', function(err, data) {
+            config = JSON.parse(data);
+            deferred.resolve(config);
+        });
+
+        return deferred.promise;
+    }
 }
 
 function startEncryption(config, collaborator) {
@@ -84,33 +205,30 @@ function startEncryption(config, collaborator) {
     }
 }
 
-function startDecryption(user) {
-    return function (config){
-        var deferred = queue.defer();
+function startDecryption(config, user) {
+    var deferred = queue.defer();
 
-        var decryptionQueue = queue();
+    var decryptionQueue = queue();
 
-        for (var i = 0; i < config.collaborators.length; i++) {
-            var collaborator = config.collaborators[i];
-            if(collaborator.name === user) {
-                break;
-            }
-        };
+    for (var i = 0; i < config.collaborators.length; i++) {
+        var collaborator = config.collaborators[i];
+        if(collaborator.name === user) {
+            break;
+        }
+    };
 
-        for (var i = 0; i < config.files.length; i++) {
-            var file = config.files[i];
+    for (var i = 0; i < config.files.length; i++) {
+        var file = config.files[i];
 
-            decryptionQueue = decryptionQueue.then(decrypt(file, collaborator));
+        decryptionQueue = decryptionQueue.then(decrypt(file, collaborator));
 
-        };
+    };
 
-        decryptionQueue.then(function() {
-            console.log('all done!');
-            deferred.resolve();
-        });
+    decryptionQueue.then(function() {
+        deferred.resolve();
+    });
 
-        return deferred.promise;
-    }
+    return deferred.promise;
 }
 
 function encrypt(file, collaborator) {
@@ -119,7 +237,10 @@ function encrypt(file, collaborator) {
         console.log('encrypting for ' + collaborator.name);
 
         fs.readFile(file, function(err, data) {
-
+            if(err) {
+                console.error(err);
+                deferred.reject();
+            }
             var crt = ursa.createPublicKey(collaborator.publicKey);
 
             var encrypted = crt.encrypt(data);

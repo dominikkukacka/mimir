@@ -6,7 +6,7 @@ var queue = require('q');
 
 var config = null;
 
-var ursa = require('ursa');
+var ursa = require('./ursa/ursa');
 
 var action = process.argv[2];
 switch(action) {
@@ -120,7 +120,7 @@ function addCollaborator(name, privateKey, publicKey) {
             // console.log('adding', name, privateKey, publicKey);
             fs.readFile(publicKey, function(err, data) {
 
-                var crt = ursa.createPublicKey(data);
+                var crt = ursa.openSshPublicKey(data.toString());
 
                 var publicKeyString = crt.toPublicPem().toString();
                 var collaborator = {

@@ -78,6 +78,7 @@ function encrypt(file, collaborator) {
 
             var encrypted = crt.encrypt(data);
             fs.writeFile(file + '.' + collaborator.name + '.crypt', encrypted, deferred.makeNodeResolver());
+            deferred.resolve();
         });
 
         return deferred.promise;

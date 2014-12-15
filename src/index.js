@@ -111,6 +111,11 @@ switch(action) {
 
     case 'decrypt':
         var user = process.argv[3];
+         if(!user) {
+            console.error('please specify a user');
+            return;
+        }
+
         encryption.decrypt(user);
         break;
 

@@ -6,34 +6,63 @@ var queue = require('q');
 
 var config = null;
 
-queue().
-then(function loadConfig() {
-    var deferred = queue.defer();
-    fs.readFile('encryption.json', function(err, data) {
-        deferred.resolve(JSON.parse(data));
-        config = JSON.parse(data);
-    });
-    return deferred.promise;
-}).
-then(function startEnryption() {
-    var publicKeyQueue = queue();
-    for (var i = 0; i < config.collaborators.length; i++) {
-        var collaborator = config.collaborators[i];
+var ursa = require('ursa');
 
-        publicKeyQueue.
-            then(writePem(collaborator)).
-            then(startEncryption(collaborator));
-    }
 
-    publicKeyQueue.then(function() {
-        console.log('publicKeyQueue done!')
-        deferred.resolve();
-    })
+var action = process.argv[2];
+switch(action) {
 
-    return deferred.promise;
-});
+    case 'encrypt':
+        queue().
+        then(function loadConfig() {
+            var deferred = queue.defer();
+            fs.readFile('config.json', function(err, data) {
+                deferred.resolve(JSON.parse(data));
+                config = JSON.parse(data);
+            });
+            return deferred.promise;
+        }).
+        then(function startEnryption() {
+            var publicKeyQueue = queue();
+            for (var i = 0; i < config.collaborators.length; i++) {
+                var collaborator = config.collaborators[i];
 
-function startEncryption(collaborator) {
+                publicKeyQueue = publicKeyQueue.
+                    then(startEncryption(config, collaborator));
+            }
+
+            publicKeyQueue.then(function() {
+                console.log('publicKeyQueue done!')
+                deferred.resolve();
+            });
+
+            return deferred.promise;
+        });
+
+        break;
+
+    case 'decrypt':
+        var user = process.argv[3];
+
+        queue().
+        then(function loadConfig() {
+            var deferred = queue.defer();
+            fs.readFile('config.json', function(err, data) {
+                deferred.resolve(JSON.parse(data));
+                config = JSON.parse(data);
+            });
+            return deferred.promise;
+        }).
+        then(startDecryption(user));
+
+        break;
+
+    default:
+        console.log('use either decrypt or encrypt');
+
+}
+
+function startEncryption(config, collaborator) {
     return function (){
         var deferred = queue.defer();
 
@@ -55,73 +84,67 @@ function startEncryption(collaborator) {
     }
 }
 
+function startDecryption(user) {
+    return function (config){
+        var deferred = queue.defer();
+
+        var decryptionQueue = queue();
+
+        for (var i = 0; i < config.collaborators.length; i++) {
+            var collaborator = config.collaborators[i];
+            if(collaborator.name === user) {
+                break;
+            }
+        };
+
+        for (var i = 0; i < config.files.length; i++) {
+            var file = config.files[i];
+
+            decryptionQueue = decryptionQueue.then(decrypt(file, collaborator));
+
+        };
+
+        decryptionQueue.then(function() {
+            console.log('all done!');
+            deferred.resolve();
+        });
+
+        return deferred.promise;
+    }
+}
+
 function encrypt(file, collaborator) {
     return function() {
         var deferred = queue.defer();
         console.log('encrypting for ' + collaborator.name);
 
-        fs.readFile(file, function(err, input) {
-            var process  = spawn('openssl', ['rsautl', '-encrypt', '-pubin', '-inkey', '/tmp/' + collaborator.name + '.pem'], {stdin: 'pipe'});
-            process.stdin.write(input);
-            process.stdin.end();
-            process.stdout.on('data', function (data) {
-                // console.log('stdout: ' + data);
-                fs.writeFile(file + '.' + collaborator.name + '.crypt', data, deferred.makeNodeResolver());
-            });
-            process.stderr.on('data', function (data) {
-                console.log('stderr: ' + data);
-                deferred.reject();
-            });
+        fs.readFile(file, function(err, data) {
+
+            var crt = ursa.createPublicKey(collaborator.publicKey);
+
+            var encrypted = crt.encrypt(data);
+            fs.writeFile(file + '.' + collaborator.name + '.crypt', encrypted, deferred.makeNodeResolver());
         });
 
         return deferred.promise;
     }
 }
 
-function writePem(collaborator) {
-    return function() {
-        var deferred = queue.defer();
-        fs.writeFile('/tmp/' + collaborator.name + '.pem', collaborator.publicKey, function() {
-            deferred.resolve();
-        });
-        return deferred.promise;
-    }
-}
+function decrypt(file, collaborator) {
 
-// fs.readFile('encryption.json', function(err, data) {
-//     var config = JSON.parse(data);
-//     // console.log(config);
-//     for (var i = 0; i < config.collaborators.length; i++) {
-//         var collaborator = config.collaborators[i];
-//         fs.writeFile('/tmp/pem', collaborator.publicKey, function() {
-//             for (var i = 0; i < config.files.length; i++) {
-//                 var file = config.files[i];
-//                 encrypt(file, collaborator.name, function() {
-//                     fs.unlink('/tmp/pem', function() {
+    var filename = file + '.' + collaborator.name + '.crypt';
 
-//                     });
-//                 });
-//             };
+    fs.readFile(filename, function(err, input) {
 
-//             // decrypt('configs/config_dominik.json.crypt');
-//         });
-//     };
+        fs.readFile(collaborator.privateKey, function(err, key) {
 
-// });
+            var key = ursa.createPrivateKey(key.toString());
+            var decrypted = key.decrypt(input);
 
-
-function decrypt(file) {
-    fs.readFile(file, function(err, input) {
-        var process  = spawn('openssl', ['rsautl', '-decrypt', '-inkey', '/Users/dkukacka/.ssh/id_rsa'], {stdin: 'pipe'});
-        process.stdin.write(input);
-        process.stdin.end();
-        process.stdout.on('data', function (data) {
-            fs.writeFile(file.replace('.crypt',''), data, function() {
+            fs.writeFile(file, decrypted, function() {
                 console.log('done decrypting file!');
             });
         });
-        process.stderr.on('data', function (data) {
-            console.log('stderr: ' + data);
-        });
+
     });
 }

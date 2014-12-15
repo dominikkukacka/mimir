@@ -1,15 +1,10 @@
 {
-  "name": "encryption",
-  "version": "0.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
+  "name": "Mímir",
+  "version": "0.1.0",
+  "description": "Mímir provides you the possibility to store your service credentials savely as a team.",
+  "author": "Dominik Kukacka <dominik.kukacka@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "q": "~1.1.2",
-    "ursa": "~0.8.1"
+    "q": "~1.1.2"
   }
 }

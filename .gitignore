@@ -1,2 +1,3 @@
 configs/*.crypt
 node_modules
+config.json

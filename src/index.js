@@ -120,7 +120,7 @@ switch(action) {
         break;
 
     default:
-        fs.readFile('README.md', function(err, data) {
+        fs.readFile(__dirname + '/../README.md', function(err, data) {
             if(!err) {
                 console.log(data.toString());
             }

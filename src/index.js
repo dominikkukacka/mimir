@@ -120,25 +120,9 @@ switch(action) {
         break;
 
     default:
-        console.log(
-            "Mímir\n\n" +
-            "Mímir provides you the possibility to store your service credentials savely as a team\n\n"+
-
-            "Usage:\n"+
-
-            "\n"+
-            "    * collaborators list - Lists all the collaborators\n"+
-            "    * collaborators add [name] [path/to/privateKey] [path/to/publicKey] - adds a new collaborator\n"+
-            "    * collaborators rm [name] - removes a collaborator\n"+
-
-            "\n"+
-            "    * files list - Lists all the files\n"+
-            "    * files add [name] - adds a new file\n"+
-            "    * files rm [name] - removes a file\n"+
-
-            "\n"+
-            "    * encrypt - Encrypts all the added files for all collaborators\n"+
-            "    * decrypt [name] - Decrypt a file with the defined collaborators privateKey (normaly yourself)"
-            );
-
+        fs.readFile('README.md', function(err, data) {
+            if(!err) {
+                console.log(data.toString());
+            }
+        });
 }
